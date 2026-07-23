@@ -2,6 +2,7 @@ image:
   repository: ghcr.io/yscale-sh/liveresize
   tag: latest
   pullPolicy: IfNotPresent
+imagePullSecrets: []
 prometheusURL: ""
 analysisInterval: 15m
 resources:

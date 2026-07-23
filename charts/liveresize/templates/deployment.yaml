@@ -10,6 +10,10 @@ spec:
     metadata: { labels: { app.kubernetes.io/name: liveresize, app.kubernetes.io/instance: {{ .Release.Name }} } }
     spec:
       serviceAccountName: {{ include "liveresize.fullname" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: liveresize
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
