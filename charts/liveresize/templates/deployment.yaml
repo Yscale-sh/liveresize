@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "liveresize.fullname" . }}
+  labels: {{- include "liveresize.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: liveresize, app.kubernetes.io/instance: {{ .Release.Name }} } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: liveresize, app.kubernetes.io/instance: {{ .Release.Name }} } }
+    spec:
+      serviceAccountName: {{ include "liveresize.fullname" . }}
+      containers:
+        - name: liveresize
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: ANALYZE_INTERVAL
+              value: {{ .Values.analysisInterval | quote }}
+            - name: PROMETHEUS_URL
+              value: {{ .Values.prometheusURL | quote }}
+          ports: [{ name: http, containerPort: 8080 }]
+          readinessProbe: { httpGet: { path: /healthz, port: http } }
+          livenessProbe: { httpGet: { path: /healthz, port: http } }
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] }, readOnlyRootFilesystem: true }

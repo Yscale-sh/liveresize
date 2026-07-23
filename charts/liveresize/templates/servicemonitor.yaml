@@ -1,0 +1,12 @@
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "liveresize.fullname" . }}
+  labels:
+    {{- include "liveresize.labels" . | nindent 4 }}
+    release: {{ .Values.serviceMonitor.releaseLabel }}
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: liveresize, app.kubernetes.io/instance: {{ .Release.Name }} } }
+  endpoints: [{ port: http, path: /metrics }]
+{{- end }}

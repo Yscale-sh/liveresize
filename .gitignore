@@ -1,0 +1,5 @@
+.mission/
+bin/
+coverage.out
+bakes/
+fast.yaml

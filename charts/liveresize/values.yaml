@@ -1,0 +1,12 @@
+image:
+  repository: ghcr.io/yscale-sh/liveresize
+  tag: latest
+  pullPolicy: IfNotPresent
+prometheusURL: ""
+analysisInterval: 15m
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { cpu: 250m, memory: 256Mi }
+serviceMonitor:
+  enabled: true
+  releaseLabel: grafana
