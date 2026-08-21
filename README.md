@@ -38,6 +38,13 @@ Container resource policies, including wildcard policies, min/max bounds, and
 hysteresis band around the target, clamped by the same resource policy, so the
 VPA updater can act promptly without resizing on tiny fluctuations.
 
+The write path deliberately owns only `status.recommendation` and the
+`RecommendationProvided` condition. It does not write `status.observedGeneration`,
+which is not part of the upstream VPA status schema. With
+`updateMode: InPlaceOrRecreate`, the upstream VPA updater first patches the pod
+`/resize` subresource and recreates the pod only when Kubernetes cannot apply the
+resource change in place.
+
 ## Operations
 
 `/healthz` is the liveness endpoint, `/metrics` exports each recommendation,
@@ -46,3 +53,8 @@ and `/recommendations` returns the current JSON report. Deploy with
 image.tag=<immutable-tag> --set
 prometheusURL=http://prometheus.example.svc:9090`. Add
 `--set writeMode=true` only when selected VPAs should be actuated.
+
+To verify the complete live path, check that the target VPA names the
+`liveresize` recommender, inspect the updater for `InPlaceResizedByVPA`, and
+confirm the pod carries `vpaInPlaceUpdated: "true"`. A healthy recommendation
+alone proves analysis, not actuation.

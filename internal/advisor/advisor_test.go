@@ -156,6 +156,9 @@ func TestOptInSelection(t *testing.T) {
 	if !found || len(conds) == 0 {
 		t.Fatalf("expected status conditions on opted in VPA")
 	}
+	if _, found, _ := unstructured.NestedFieldNoCopy(vpaOptInUpdated.Object, "status", "observedGeneration"); found {
+		t.Fatal("custom recommender must not write status.observedGeneration; the VPA status schema does not define it")
+	}
 
 	// vpaOther & vpaDefault should NOT have status updated
 	vpaOtherGet, _ := dynWrite.Resource(vpaGVR).Namespace("default").Get(context.Background(), "vpa-other", metav1.GetOptions{})

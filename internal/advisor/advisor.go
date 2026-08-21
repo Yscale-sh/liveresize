@@ -424,8 +424,6 @@ func formatMem(bytes int64) string {
 }
 
 func (a *Advisor) updateVPAStatus(ctx context.Context, vpa *unstructured.Unstructured, cResults []containerResult) error {
-	observedGen := vpa.GetGeneration()
-
 	var containerRecs []interface{}
 	for _, cr := range cResults {
 		crMap := map[string]interface{}{
@@ -480,11 +478,9 @@ func (a *Advisor) updateVPAStatus(ctx context.Context, vpa *unstructured.Unstruc
 		updatedConditions = append(updatedConditions, newCond)
 	}
 
-	existingObservedGen, foundObservedGen, _ := unstructured.NestedInt64(vpa.Object, "status", "observedGeneration")
 	existingContainerRecs, _, _ := unstructured.NestedSlice(vpa.Object, "status", "recommendation", "containerRecommendations")
 
-	if foundObservedGen && existingObservedGen == observedGen &&
-		reflect.DeepEqual(existingContainerRecs, containerRecs) &&
+	if reflect.DeepEqual(existingContainerRecs, containerRecs) &&
 		reflect.DeepEqual(existingConditions, updatedConditions) {
 		a.log.Debug("vpa status unchanged, skipping write", "vpa", vpa.GetName())
 		return nil
@@ -492,7 +488,6 @@ func (a *Advisor) updateVPAStatus(ctx context.Context, vpa *unstructured.Unstruc
 
 	patch := map[string]interface{}{
 		"status": map[string]interface{}{
-			"observedGeneration": observedGen,
 			"recommendation": map[string]interface{}{
 				"containerRecommendations": containerRecs,
 			},
