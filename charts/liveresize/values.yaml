@@ -5,6 +5,8 @@ image:
 imagePullSecrets: []
 prometheusURL: ""
 analysisInterval: 15m
+recommenderName: liveresize
+writeMode: false
 resources:
   requests: { cpu: 50m, memory: 128Mi }
   limits: { cpu: 250m, memory: 256Mi }

@@ -21,6 +21,10 @@ spec:
           env:
             - name: ANALYZE_INTERVAL
               value: {{ .Values.analysisInterval | quote }}
+            - name: RECOMMENDER_NAME
+              value: {{ .Values.recommenderName | quote }}
+            - name: WRITE_MODE
+              value: {{ .Values.writeMode | quote }}
             - name: PROMETHEUS_URL
               value: {{ .Values.prometheusURL | quote }}
           ports: [{ name: http, containerPort: 8080 }]

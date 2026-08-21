@@ -1,8 +1,9 @@
 # LiveResize
 
-LiveResize is a read-only Kubernetes resource-sizing advisor. It combines live
-workload metrics, VPA recommendations, and Prometheus history to suggest
-conservative CPU and memory floors. It never modifies workloads or VPAs.
+LiveResize is a Kubernetes resource-sizing advisor and opt-in custom VPA
+recommender. It combines live workload metrics, VPA recommendations, and
+Prometheus history to suggest conservative CPU and memory floors. Read-only
+advisory mode is the default.
 
 ## How it decides
 
@@ -17,10 +18,29 @@ only from its quiet initial minutes.
 working from Kubernetes metrics and VPA status, and exports its source health.
 It requires read-only access to Pods, Deployments, PodMetrics, and VPAs.
 
+## Custom recommender mode
+
+Set `writeMode: true` in the Helm values to allow LiveResize to write the VPA
+status subresource. A VPA must opt in explicitly; unselected VPAs are ignored:
+
+```yaml
+spec:
+  recommenders:
+    - name: liveresize
+```
+
+LiveResize writes per-container targets and the standard VPA updater and
+admission controller apply them. It never patches workloads, VPA specs, pods,
+or replica counts. For selected VPAs it does not reuse the prior VPA status as
+an input, preventing its own recommendation from compounding on each analysis.
+Container resource policies, including wildcard policies, min/max bounds, and
+`mode: Off`, are honored.
+
 ## Operations
 
 `/healthz` is the liveness endpoint, `/metrics` exports each recommendation,
-and `/recommendations` returns the current JSON report. The service has no
-mutating endpoint or apply mode. Deploy with `helm upgrade --install liveresize
-charts/liveresize --set image.tag=<immutable-tag> --set
-prometheusURL=http://prometheus.example.svc:9090`.
+and `/recommendations` returns the current JSON report. Deploy with
+`helm upgrade --install liveresize charts/liveresize --set
+image.tag=<immutable-tag> --set
+prometheusURL=http://prometheus.example.svc:9090`. Add
+`--set writeMode=true` only when selected VPAs should be actuated.
