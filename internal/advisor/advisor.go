@@ -114,6 +114,8 @@ type containerResult struct {
 	containerName string
 	uncapped      recommend.Quantity
 	target        recommend.Quantity
+	lowerBound    recommend.Quantity
+	upperBound    recommend.Quantity
 }
 
 func (a *Advisor) analyze(ctx context.Context) {
@@ -200,11 +202,15 @@ func (a *Advisor) one(ctx context.Context, vpa *unstructured.Unstructured) (Reco
 		})
 
 		clampedTarget := applyResourcePolicy(res.Minimum, policy)
+		lowerBound := applyResourcePolicy(scaleQuantity(clampedTarget, 80, 100), policy)
+		upperBound := applyResourcePolicy(scaleQuantity(clampedTarget, 120, 100), policy)
 
 		cResults = append(cResults, containerResult{
 			containerName: cName,
 			uncapped:      res.Minimum,
 			target:        clampedTarget,
+			lowerBound:    lowerBound,
+			upperBound:    upperBound,
 		})
 
 		overallCPU += clampedTarget.CPU
@@ -402,6 +408,13 @@ func applyResourcePolicy(q recommend.Quantity, policy *containerResourcePolicy) 
 	return target
 }
 
+func scaleQuantity(q recommend.Quantity, numerator, denominator int64) recommend.Quantity {
+	return recommend.Quantity{
+		CPU:    (q.CPU*numerator + denominator - 1) / denominator,
+		Memory: (q.Memory*numerator + denominator - 1) / denominator,
+	}
+}
+
 func formatCPU(milli int64) string {
 	return fmt.Sprintf("%dm", milli)
 }
@@ -420,6 +433,14 @@ func (a *Advisor) updateVPAStatus(ctx context.Context, vpa *unstructured.Unstruc
 			"target": map[string]interface{}{
 				"cpu":    formatCPU(cr.target.CPU),
 				"memory": formatMem(cr.target.Memory),
+			},
+			"lowerBound": map[string]interface{}{
+				"cpu":    formatCPU(cr.lowerBound.CPU),
+				"memory": formatMem(cr.lowerBound.Memory),
+			},
+			"upperBound": map[string]interface{}{
+				"cpu":    formatCPU(cr.upperBound.CPU),
+				"memory": formatMem(cr.upperBound.Memory),
 			},
 			"uncappedTarget": map[string]interface{}{
 				"cpu":    formatCPU(cr.uncapped.CPU),

@@ -228,6 +228,11 @@ func TestPerContainerMaxPodUsage(t *testing.T) {
 	if webTarget["memory"] != wantWebMem {
 		t.Errorf("web target memory=%v, want %s", webTarget["memory"], wantWebMem)
 	}
+	webLower := recMap["web"]["lowerBound"].(map[string]interface{})
+	webUpper := recMap["web"]["upperBound"].(map[string]interface{})
+	if webLower["cpu"] != "240m" || webUpper["cpu"] != "360m" {
+		t.Errorf("web bounds cpu=%v..%v, want 240m..360m", webLower["cpu"], webUpper["cpu"])
+	}
 
 	// worker live=300m, 300Mi -> headroom 1.50 -> 450m, 450Mi (471859200 bytes)
 	workerTarget := recMap["worker"]["target"].(map[string]interface{})
@@ -290,6 +295,11 @@ func TestResourcePolicyClampingAndOff(t *testing.T) {
 	}
 	if clampTarget["memory"] != formatMem(1024*1024*1024) {
 		t.Errorf("c-clamp target memory=%v, want 1Gi", clampTarget["memory"])
+	}
+	clampLower := recMap["c-clamp"]["lowerBound"].(map[string]interface{})
+	clampUpper := recMap["c-clamp"]["upperBound"].(map[string]interface{})
+	if clampLower["cpu"] != "500m" || clampUpper["cpu"] != "600m" {
+		t.Errorf("c-clamp bounds cpu=%v..%v, want policy-clamped 500m..600m", clampLower["cpu"], clampUpper["cpu"])
 	}
 
 	// VPA requires containers in Off mode to be omitted entirely.

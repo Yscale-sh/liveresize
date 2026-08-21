@@ -34,7 +34,9 @@ admission controller apply them. It never patches workloads, VPA specs, pods,
 or replica counts. For selected VPAs it does not reuse the prior VPA status as
 an input, preventing its own recommendation from compounding on each analysis.
 Container resource policies, including wildcard policies, min/max bounds, and
-`mode: Off`, are honored.
+`mode: Off`, are honored. Lower and upper recommendation bounds use a 20%
+hysteresis band around the target, clamped by the same resource policy, so the
+VPA updater can act promptly without resizing on tiny fluctuations.
 
 ## Operations
 
