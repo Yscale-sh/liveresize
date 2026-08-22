@@ -116,6 +116,8 @@ type containerResult struct {
 	target        recommend.Quantity
 	lowerBound    recommend.Quantity
 	upperBound    recommend.Quantity
+	controlledCPU bool
+	controlledMem bool
 }
 
 func (a *Advisor) analyze(ctx context.Context) {
@@ -211,6 +213,8 @@ func (a *Advisor) one(ctx context.Context, vpa *unstructured.Unstructured) (Reco
 			target:        clampedTarget,
 			lowerBound:    lowerBound,
 			upperBound:    upperBound,
+			controlledCPU: policy == nil || policy.controlledCPU,
+			controlledMem: policy == nil || policy.controlledMem,
 		})
 
 		overallCPU += clampedTarget.CPU
@@ -323,6 +327,8 @@ func vpaUncappedPerContainer(v *unstructured.Unstructured) map[string]recommend.
 type containerResourcePolicy struct {
 	containerName string
 	mode          string
+	controlledCPU bool
+	controlledMem bool
 	minCPU        *int64
 	maxCPU        *int64
 	minMem        *int64
@@ -345,6 +351,20 @@ func getResourcePolicies(vpa *unstructured.Unstructured) []containerResourcePoli
 		p := containerResourcePolicy{
 			containerName: cName,
 			mode:          mode,
+			controlledCPU: true,
+			controlledMem: true,
+		}
+		if controlled, ok := m["controlledResources"].([]interface{}); ok && len(controlled) > 0 {
+			p.controlledCPU = false
+			p.controlledMem = false
+			for _, resource := range controlled {
+				switch fmt.Sprint(resource) {
+				case "cpu":
+					p.controlledCPU = true
+				case "memory":
+					p.controlledMem = true
+				}
+			}
 		}
 		if minAllowed, ok := m["minAllowed"].(map[string]interface{}); ok {
 			if cpu, ok := minAllowed["cpu"]; ok && fmt.Sprint(cpu) != "" {
@@ -423,27 +443,26 @@ func formatMem(bytes int64) string {
 	return fmt.Sprintf("%d", bytes)
 }
 
+func controlledQuantity(q recommend.Quantity, controlledCPU, controlledMem bool) map[string]interface{} {
+	result := make(map[string]interface{}, 2)
+	if controlledCPU {
+		result["cpu"] = formatCPU(q.CPU)
+	}
+	if controlledMem {
+		result["memory"] = formatMem(q.Memory)
+	}
+	return result
+}
+
 func (a *Advisor) updateVPAStatus(ctx context.Context, vpa *unstructured.Unstructured, cResults []containerResult) error {
 	var containerRecs []interface{}
 	for _, cr := range cResults {
 		crMap := map[string]interface{}{
-			"containerName": cr.containerName,
-			"target": map[string]interface{}{
-				"cpu":    formatCPU(cr.target.CPU),
-				"memory": formatMem(cr.target.Memory),
-			},
-			"lowerBound": map[string]interface{}{
-				"cpu":    formatCPU(cr.lowerBound.CPU),
-				"memory": formatMem(cr.lowerBound.Memory),
-			},
-			"upperBound": map[string]interface{}{
-				"cpu":    formatCPU(cr.upperBound.CPU),
-				"memory": formatMem(cr.upperBound.Memory),
-			},
-			"uncappedTarget": map[string]interface{}{
-				"cpu":    formatCPU(cr.uncapped.CPU),
-				"memory": formatMem(cr.uncapped.Memory),
-			},
+			"containerName":  cr.containerName,
+			"target":         controlledQuantity(cr.target, cr.controlledCPU, cr.controlledMem),
+			"lowerBound":     controlledQuantity(cr.lowerBound, cr.controlledCPU, cr.controlledMem),
+			"upperBound":     controlledQuantity(cr.upperBound, cr.controlledCPU, cr.controlledMem),
+			"uncappedTarget": controlledQuantity(cr.uncapped, cr.controlledCPU, cr.controlledMem),
 		}
 		containerRecs = append(containerRecs, crMap)
 	}

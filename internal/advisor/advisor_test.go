@@ -262,14 +262,19 @@ func TestResourcePolicyClampingAndOff(t *testing.T) {
 			"containerName": "c-off",
 			"mode":          "Off",
 		},
+		{
+			"containerName":       "c-memory-only",
+			"controlledResources": []interface{}{"memory"},
+			"minAllowed":          map[string]interface{}{"cpu": "500m", "memory": "1Gi"},
+		},
 	}
 	vpa := makeVPA("default", "vpa-policy", "dep-policy", []string{"liveresize"}, policies)
 	adv, dyn, core, metrics := newTestAdvisor(cfg, vpa)
 
 	// pod usage: c-clamp = 100m, 100Mi (uncapped calculate: 150m, 150Mi) -> minAllowed clamps to 500m, 1Gi
 	// c-off = 100m, 100Mi -> mode Off -> target: cpu 0m, memory 0
-	setupDeploymentAndPods(t, core, metrics, "default", "dep-policy", []string{"c-clamp", "c-off"}, []map[string][2]string{
-		{"c-clamp": {"100m", "100Mi"}, "c-off": {"100m", "100Mi"}},
+	setupDeploymentAndPods(t, core, metrics, "default", "dep-policy", []string{"c-clamp", "c-off", "c-memory-only"}, []map[string][2]string{
+		{"c-clamp": {"100m", "100Mi"}, "c-off": {"100m", "100Mi"}, "c-memory-only": {"100m", "100Mi"}},
 	})
 
 	adv.analyze(context.Background())
@@ -308,6 +313,20 @@ func TestResourcePolicyClampingAndOff(t *testing.T) {
 	// VPA requires containers in Off mode to be omitted entirely.
 	if _, found := recMap["c-off"]; found {
 		t.Errorf("c-off received a recommendation despite mode Off")
+	}
+
+	// Only resources named in controlledResources may be written into VPA
+	// status. The upstream updater applies every resource present there, so
+	// emitting CPU for a memory-only policy would silently alter HPA semantics.
+	memoryOnly := recMap["c-memory-only"]
+	for _, field := range []string{"target", "lowerBound", "upperBound", "uncappedTarget"} {
+		quantities := memoryOnly[field].(map[string]interface{})
+		if _, found := quantities["cpu"]; found {
+			t.Errorf("c-memory-only %s contains cpu: %v", field, quantities)
+		}
+		if _, found := quantities["memory"]; !found {
+			t.Errorf("c-memory-only %s omits memory: %v", field, quantities)
+		}
 	}
 }
 
